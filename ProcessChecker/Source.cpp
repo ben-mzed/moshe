@@ -1,8 +1,13 @@
 #include "Header.h"
+#include <stdio.h>
+
+#pragma warning( push )
+#pragma warning( disable : 4820 4668 5039)
 #include <windows.h>
 #include <WtsApi32.h>
+#pragma warning( pop )
 #include <Psapi.h>
-#include <stdio.h>
+#pragma warning( disable : 5045)
 
 
 // Uses 'EnumProcesses', 'OpenProcess', and 'GetModuleBaseName' functions from 'Psapi' library.
@@ -78,8 +83,8 @@ bool IsAnyProcessRunning(unordered_set<wstring> target_processes, vector<wstring
 #ifndef _TESTS
 int main(void)
 {
-    unordered_set<wstring> target_processes{ L"chrome.exe1", L"slack.exe1" , L"OneDrive.exe1" };
-    vector<wstring> running_processes = GetProcessNamesByPsApi();
+    unordered_set<wstring> target_processes{ L"VsDebugConsole.exe1", L"slack.exe1" , L"OneDrive.exe1" };
+    vector<wstring> running_processes = GetProcessNamesByWtsApi();
     if (IsAnyProcessRunning(target_processes, running_processes)) {
         printf("Yes");
     }

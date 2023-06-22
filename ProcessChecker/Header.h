@@ -1,6 +1,9 @@
 #pragma once
-
+#pragma warning( push )
+#pragma warning( disable : 4365)
+#include <stdio.h>
 #include <unordered_set>
+#pragma warning( pop )
 using namespace std;
 
 /*
