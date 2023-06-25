@@ -47,7 +47,11 @@ bool IsAnyProcessRunning_UT(void)
 */
 bool GetProcessNamesByPsApi_UT() {
 	wstring vs_process = L"VsDebugConsole.exe";
-	vector<wstring> names_by_ps = GetProcessNamesByPsApi();
+	vector<wstring> names_by_ps;
+	if (!GetProcessNamesByPsApi(names_by_ps)) {
+		return false;
+	}
+
 	if (!names_by_ps.size()) {
 		return false;
 	}
@@ -56,7 +60,10 @@ bool GetProcessNamesByPsApi_UT() {
 
 bool GetProcessNamesByWtsApi_UT() {
 	wstring vs_process = L"VsDebugConsole.exe";
-	vector<wstring> names_by_wts = GetProcessNamesByWtsApi();
+	vector<wstring> names_by_wts;
+	if (!GetProcessNamesByWtsApi(names_by_wts)) {
+		return false;
+	}
 	return count(names_by_wts.begin(), names_by_wts.end(), vs_process) > 0;
 }
 

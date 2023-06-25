@@ -11,16 +11,15 @@
 
 
 // Uses 'EnumProcesses', 'OpenProcess', and 'GetModuleBaseName' functions from 'Psapi' library.
-vector<wstring> GetProcessNamesByPsApi() {
+bool GetProcessNamesByPsApi(vector<wstring>& running_processes) {
 
-    vector<wstring> processes_names;
     DWORD processes[1024];
     DWORD cb_needed;
 
     // Enumerate all processes into processes argument
     if (!EnumProcesses(processes, sizeof(processes), &cb_needed)) {
         printf("Failed to enumerate processes. Error code: %lu", GetLastError());
-        return processes_names;
+        return false;
     }
 
     // Calculate the number of processes
@@ -28,34 +27,36 @@ vector<wstring> GetProcessNamesByPsApi() {
 
     for (DWORD i = 0; i < process_count; ++i) {
         HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, processes[i]);
-        if (hProcess != NULL) {
-            wchar_t sz_process_name[MAX_PATH];
-            if (GetModuleBaseNameW(hProcess, NULL, sz_process_name, sizeof(sz_process_name) / sizeof(wchar_t))) {
-                wstring process_name(sz_process_name);
-                processes_names.push_back(process_name);
-            }
-            CloseHandle(hProcess);
+        if (hProcess == NULL) {
+            continue;
         }
+
+        wchar_t sz_process_name[MAX_PATH];
+        if (GetModuleBaseNameW(hProcess, NULL, sz_process_name, sizeof(sz_process_name) / sizeof(wchar_t))) {
+            wstring process_name(sz_process_name);
+            running_processes.push_back(process_name);
+        }
+
+        CloseHandle(hProcess);
     }
 
-    return processes_names;
+    return true;
 }
 
 
 // Uses 'WTSEnumerateProcesses' function from 'WtsApi' library.
-vector<wstring> GetProcessNamesByWtsApi() {
+bool GetProcessNamesByWtsApi(vector<wstring>& running_processes) {
 
     WTS_PROCESS_INFO* pWPIs = NULL;
     DWORD dwProcCount = 0;
-    vector<wstring> processes_names;
 
-    if (WTSEnumerateProcesses(WTS_CURRENT_SERVER_HANDLE, NULL, 1, &pWPIs, &dwProcCount))
+    if (WTSEnumerateProcesses(WTS_CURRENT_SERVER_HANDLE, 0, 1, &pWPIs, &dwProcCount))
     {
         //save all process names retrieved
         for (DWORD i = 0; i < dwProcCount; i++)
         {
             wstring process_name(pWPIs[i].pProcessName);
-            processes_names.push_back(process_name);
+            running_processes.push_back(process_name);
         }
     }
 
@@ -65,26 +66,31 @@ vector<wstring> GetProcessNamesByWtsApi() {
         WTSFreeMemory(pWPIs);
         pWPIs = NULL;
     }
-    return processes_names;
 
+    return true;
 }
 
 
-bool IsAnyProcessRunning(unordered_set<wstring> target_processes, vector<wstring> running_processes)
+bool IsAnyProcessRunning(const unordered_set<wstring>& target_processes, const vector<wstring>& running_processes)
 {
     for (const wstring& tProcess : running_processes) {
         if (target_processes.count(tProcess)) {
             return true;
         }
     }
+
     return false;
 }
 
 #ifndef _TESTS
 int main(void)
 {
-    unordered_set<wstring> target_processes{ L"VsDebugConsole.exe1", L"slack.exe1" , L"OneDrive.exe1" };
-    vector<wstring> running_processes = GetProcessNamesByWtsApi();
+    unordered_set<wstring> target_processes{ L"VsDebugConsol1e.exe", L"slack.exe1" , L"OneDrive.exe1" };
+    vector<wstring> running_processes;
+    if (!GetProcessNamesByWtsApi(running_processes)) {
+        return 1;
+    }
+
     if (IsAnyProcessRunning(target_processes, running_processes)) {
         printf("Yes");
     }
@@ -92,6 +98,7 @@ int main(void)
     {
         printf("No");
     }
+
     return 0;
 }
 #endif
