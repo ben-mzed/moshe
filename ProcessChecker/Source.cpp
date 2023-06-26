@@ -23,7 +23,7 @@ bool GetProcessNamesByPsApi(vector<wstring>& running_processes) {
     }
 
     // Calculate the number of processes
-    DWORD process_count = cb_needed / sizeof(DWORD);
+    const DWORD process_count = cb_needed / sizeof(DWORD);
 
     for (DWORD i = 0; i < process_count; ++i) {
         HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, processes[i]);
@@ -50,14 +50,16 @@ bool GetProcessNamesByWtsApi(vector<wstring>& running_processes) {
     WTS_PROCESS_INFO* pWPIs = NULL;
     DWORD dwProcCount = 0;
 
-    if (WTSEnumerateProcesses(WTS_CURRENT_SERVER_HANDLE, 0, 1, &pWPIs, &dwProcCount))
+    if (!WTSEnumerateProcesses(WTS_CURRENT_SERVER_HANDLE, 0, 1, &pWPIs, &dwProcCount))
     {
-        //save all process names retrieved
-        for (DWORD i = 0; i < dwProcCount; i++)
-        {
-            wstring process_name(pWPIs[i].pProcessName);
-            running_processes.push_back(process_name);
-        }
+        return false;
+    }
+
+    //save all process names retrieved
+    for (DWORD i = 0; i < dwProcCount; i++)
+    {
+        const wstring process_name(pWPIs[i].pProcessName);
+        running_processes.push_back(process_name);
     }
 
     //Free memory
@@ -85,7 +87,7 @@ bool IsAnyProcessRunning(const unordered_set<wstring>& target_processes, const v
 #ifndef _TESTS
 int main(void)
 {
-    unordered_set<wstring> target_processes{ L"VsDebugConsol1e.exe", L"slack.exe1" , L"OneDrive.exe1" };
+    const unordered_set<wstring> target_processes{ L"VsDebugConsol1e.exe", L"slack.exe1" , L"OneDrive.exe1" };
     vector<wstring> running_processes;
     if (!GetProcessNamesByWtsApi(running_processes)) {
         return 1;

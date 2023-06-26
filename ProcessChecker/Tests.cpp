@@ -7,11 +7,11 @@
 
 bool IsAnyProcessRunning_UT(void)
 {
-	unordered_set<wstring> target_processes1 { L"proc-1" };
-	unordered_set<wstring> target_processes2 { L"proc-4" };
-	unordered_set<wstring> target_processes3 { };
-	vector<wstring> running_processes { L"proc-1", L"proc-2", L"proc-3" };
-	vector<wstring> running_processes_empty { };
+	const unordered_set<wstring> target_processes1 { L"proc-1" };
+	const unordered_set<wstring> target_processes2 { L"proc-4" };
+	const unordered_set<wstring> target_processes3 { };
+	const vector<wstring> running_processes { L"proc-1", L"proc-2", L"proc-3" };
+	const vector<wstring> running_processes_empty { };
 
 	// "proc-1" is in both target_processes1 and running_processes
 	// IsAnyProcessRunning should return true
@@ -46,7 +46,7 @@ bool IsAnyProcessRunning_UT(void)
 	And also that VsDebugConsole.exe is inside.
 */
 bool GetProcessNamesByPsApi_UT() {
-	wstring vs_process = L"VsDebugConsole.exe";
+	const wstring vs_process = L"VsDebugConsole.exe";
 	vector<wstring> names_by_ps;
 	if (!GetProcessNamesByPsApi(names_by_ps)) {
 		return false;
@@ -59,7 +59,7 @@ bool GetProcessNamesByPsApi_UT() {
 }
 
 bool GetProcessNamesByWtsApi_UT() {
-	wstring vs_process = L"VsDebugConsole.exe";
+	const wstring vs_process = L"VsDebugConsole.exe";
 	vector<wstring> names_by_wts;
 	if (!GetProcessNamesByWtsApi(names_by_wts)) {
 		return false;
