@@ -108,7 +108,7 @@ bool RunMalware() {
             // ShellExecute failed
             return false;
         }
-        printf("ok");
+        
         Sleep(7000);
     }
 
