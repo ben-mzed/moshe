@@ -1,46 +1,54 @@
-#include <iostream>
+#pragma warning( push )
+#pragma warning( disable : 5045 4365 4668 4710 4777 5039)
 #include <Windows.h>
 #include "Header.h"
 #include <tchar.h>
 #include <strsafe.h>
+#include <fstream>
+#pragma warning( pop )
 
+//#pragma comment(lib, "advapi32.lib")
+
+#pragma warning( disable : 5039 4312 4100)
 // Global variables
 SERVICE_STATUS serviceStatus = { 0 };
 SERVICE_STATUS_HANDLE serviceStatusHandle = NULL;
 int mouseSpeedCounter = 0;
+const LPWSTR serviceName = const_cast<LPWSTR>(L"ABCD");
+#define fileLocation TEXT("C:\\Users\\MosheRappaport\\Desktop\\test.txt")
 
 // Save the original mouse speed
 const int originalMouseSpeed = GetMouseSpeed();
 const int fastMouseSpeed = 20;
 const int slowMouseSpeed = 1;
-const LPWSTR serviceName = const_cast<LPWSTR>(L"ABCD");
-//#define serviceName TEXT("SvcName")
-int main(int argc, TCHAR* argv[])
+
+
+int _tmain(DWORD argc, TCHAR* argv[])
 {   
-    //// If command-line parameter is "install", install the service. 
-    //// Otherwise, the service is probably being started by the SCM.
-    //if (lstrcmpi(argv[1], TEXT("install")) == 0)
-    //{
-    //    return 0;
-    //}
-    SvcInstall();
+    // If command-line parameter is "install", install the service. 
+    // Otherwise, the service is probably being started by the SCM.
 
-    // Service table entry structure
-    SERVICE_TABLE_ENTRY serviceTable[] =
+    if (lstrcmpi(argv[1], TEXT("install")) == 0)
     {
-        { serviceName, (LPSERVICE_MAIN_FUNCTION) ServiceMain },
-        { NULL, NULL }
-    };
-
-    // Register the service control handler
-    if (!StartServiceCtrlDispatcher(serviceTable))
-    {
-        int err = GetLastError();
-        return err;
+        SvcInstall();
+        SvcStart();
+        return 0;
     }
 
+    SERVICE_TABLE_ENTRY ServiceTable[] =
+    {
+        {serviceName, (LPSERVICE_MAIN_FUNCTION)ServiceMain},
+        {NULL, NULL}
+    };
+
+    if (StartServiceCtrlDispatcher(ServiceTable) == FALSE)
+    {
+        return (int)GetLastError();
+    }
+    
     return 0;
 }
+
 
 VOID WINAPI ServiceMain(DWORD argc, LPWSTR* argv)
 {
@@ -48,13 +56,12 @@ VOID WINAPI ServiceMain(DWORD argc, LPWSTR* argv)
     serviceStatusHandle = RegisterServiceCtrlHandlerW(argv[0], Handler);
     if (serviceStatusHandle == NULL)
     {
-        std::cerr << "Failed to register service control handler." << std::endl;
         return;
     }
 
     // Set service status to start pending
     serviceStatus.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
-    serviceStatus.dwCurrentState = SERVICE_START_PENDING;
+    serviceStatus.dwCurrentState = SERVICE_RUNNING;
     serviceStatus.dwControlsAccepted = SERVICE_ACCEPT_STOP;
     serviceStatus.dwWin32ExitCode = NO_ERROR;
     serviceStatus.dwServiceSpecificExitCode = 0;
@@ -62,27 +69,14 @@ VOID WINAPI ServiceMain(DWORD argc, LPWSTR* argv)
     serviceStatus.dwWaitHint = 0;
     SetServiceStatus(serviceStatusHandle, &serviceStatus);
 
-    // Perform initialization tasks here
-
-
-    // Set service status to running
-    serviceStatus.dwCurrentState = SERVICE_RUNNING;
-    SetServiceStatus(serviceStatusHandle, &serviceStatus);
-
     // Perform the main service function here
     while (serviceStatus.dwCurrentState == SERVICE_RUNNING)
     {
-        // Change the mouse speed every 5 seconds
-        if (mouseSpeedCounter % 2 == 0)
-        {
-            SetMouseSpeed(fastMouseSpeed);
-        }
-        else
-        {
-            SetMouseSpeed(slowMouseSpeed);
-        }
+        
+        WriteToFile();
 
-        ++mouseSpeedCounter;
+        // Change the mouse speed every 5 seconds
+        AnnoyingMouseSpeed();
 
         // Sleep for 5 seconds
         Sleep(5000);
@@ -92,6 +86,7 @@ VOID WINAPI ServiceMain(DWORD argc, LPWSTR* argv)
     serviceStatus.dwCurrentState = SERVICE_STOPPED;
     SetServiceStatus(serviceStatusHandle, &serviceStatus);
 }
+
 
 VOID WINAPI Handler(DWORD control)
 {
@@ -104,6 +99,7 @@ VOID WINAPI Handler(DWORD control)
 
         // Perform cleanup and stop service
         SetMouseSpeed(originalMouseSpeed);
+        DeleteFile(fileLocation);
 
         // Set service status to stopped
         serviceStatus.dwCurrentState = SERVICE_STOPPED;
@@ -113,10 +109,12 @@ VOID WINAPI Handler(DWORD control)
     }
 }
 
+
 void SetMouseSpeed(int speed)
 {
     SystemParametersInfo(SPI_SETMOUSESPEED, 0, (LPVOID)speed, SPIF_SENDCHANGE);
 }
+
 
 int GetMouseSpeed()
 {
@@ -125,16 +123,33 @@ int GetMouseSpeed()
     return speed;
 }
 
-//
-// Purpose: 
-//   Installs a service in the SCM database
-//
-// Parameters:
-//   None
-// 
-// Return value:
-//   None
-//
+
+void WriteToFile()
+{
+    std::ofstream ofs(fileLocation, std::ofstream::app);
+
+    ofs << "Annoying Servise\n";
+
+    ofs.close();
+}
+
+
+void AnnoyingMouseSpeed()
+{
+    if (mouseSpeedCounter % 2 == 0)
+    {
+        SetMouseSpeed(fastMouseSpeed);
+    }
+    else
+    {
+        SetMouseSpeed(slowMouseSpeed);
+    }
+
+    mouseSpeedCounter = (mouseSpeedCounter + 1) % 2;
+
+}
+
+
 VOID SvcInstall()
 {
     SC_HANDLE schSCManager;
@@ -143,7 +158,6 @@ VOID SvcInstall()
 
     if (!GetModuleFileName(NULL, szUnquotedPath, MAX_PATH))
     {
-        printf("Cannot install service (%d)\n", GetLastError());
         return;
     }
 
@@ -155,7 +169,6 @@ VOID SvcInstall()
     StringCbPrintf(szPath, MAX_PATH, TEXT("\"%s\""), szUnquotedPath);
 
     // Get a handle to the SCM database. 
-
     schSCManager = OpenSCManager(
         NULL,                    // local computer
         NULL,                    // ServicesActive database 
@@ -163,19 +176,17 @@ VOID SvcInstall()
 
     if (NULL == schSCManager)
     {
-        printf("OpenSCManager failed (%d)\n", GetLastError());
         return;
     }
 
     // Create the service
-
     schService = CreateService(
         schSCManager,              // SCM database 
         serviceName,                   // name of service 
         serviceName,                   // service name to display 
         SERVICE_ALL_ACCESS,        // desired access 
         SERVICE_WIN32_OWN_PROCESS, // service type 
-        SERVICE_DEMAND_START,      // start type 
+        SERVICE_AUTO_START,      // start type 
         SERVICE_ERROR_NORMAL,      // error control type 
         szPath,                    // path to service's binary 
         NULL,                      // no load ordering group 
@@ -186,11 +197,54 @@ VOID SvcInstall()
 
     if (schService == NULL)
     {
-        printf("CreateService failed (%d)\n", GetLastError());
         CloseServiceHandle(schSCManager);
         return;
     }
-    else printf("Service installed successfully\n");
+
+    CloseServiceHandle(schService);
+    CloseServiceHandle(schSCManager);
+}
+
+
+VOID SvcStart()
+{
+    SC_HANDLE schSCManager;
+    SC_HANDLE schService;
+
+    // Get a handle to the SCM database. 
+    schSCManager = OpenSCManager(
+        NULL,                    // local computer
+        NULL,                    // servicesActive database 
+        SC_MANAGER_ALL_ACCESS);  // full access rights 
+
+    if (NULL == schSCManager)
+    {
+        return;
+    }
+
+    // Get a handle to the service.
+    schService = OpenService(
+        schSCManager,         // SCM database 
+        serviceName,            // name of service 
+        SERVICE_ALL_ACCESS);  // full access 
+
+    if (schService == NULL)
+    {
+        CloseServiceHandle(schSCManager);
+        return;
+    }
+
+    // Attempt to start the service.
+    if (!StartService(
+        schService,  // handle to service 
+        0,           // number of arguments 
+        NULL))      // no arguments 
+    {
+        CloseServiceHandle(schService);
+        CloseServiceHandle(schSCManager);
+        return;
+    }
+
 
     CloseServiceHandle(schService);
     CloseServiceHandle(schSCManager);

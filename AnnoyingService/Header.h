@@ -1,12 +1,46 @@
 #pragma once
 #include <iostream>
-// Service entry point
+
+
+/* @brief Service entry point
+*
+*/
 VOID WINAPI ServiceMain(DWORD argc, LPWSTR* argv);
 
-// Handler function for service control events
+
+/* @brief Handler function for service control events
+*
+* @param control - service status
+*/
 VOID WINAPI Handler(DWORD control);
 
+
+/* @brief get mouse speed
+*
+*/
 int GetMouseSpeed();
 
+
+/* @brief set mouse speed
+*/
 void SetMouseSpeed(int speed);
+
+
+/* @brief install the service
+*/
 VOID SvcInstall();
+
+
+/* @brief start the service
+*/
+VOID SvcStart();
+
+
+/* @brief write to file
+*/
+void WriteToFile();
+
+
+/* @brief change the mouse speed to min/max according to the corent speed.
+*/
+void AnnoyingMouseSpeed();
