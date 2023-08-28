@@ -38,9 +38,4 @@ VOID SvcStart();
 
 /* @brief write to file
 */
-void WriteToFile();
-
-
-/* @brief change the mouse speed to min/max according to the corent speed.
-*/
-void AnnoyingMouseSpeed();
+void WriteToFile(const char* msg);
